@@ -1,35 +1,35 @@
-import express from 'express'; // Importa o servidor Express
-import dotenv from 'dotenv'; // Importa leitor de variáveis de ambiente
-import conectarBanco from './db.js'; // Importa a conexão do banco de dados
+import express from 'express'; 
+import dotenv from 'dotenv'; 
+import conectarBanco from './db.js'; 
 
-dotenv.config(); // Carrega as variáveis do arquivo .env
+dotenv.config(); 
 
-const app = express(); // Inicializa o aplicativo Express
+const app = express(); 
 
-app.use(express.json()); // Ativa suporte a JSON no corpo da requisição
-app.use(express.static('public')); // Define a pasta public para arquivos estáticos
+app.use(express.json()); 
+app.use(express.static('public')); 
 
-const PORTA = process.env.PORTA || 3000; // Define a porta do servidor
-const conexao = conectarBanco(); // Cria a conexão com o banco
+const PORTA = process.env.PORTA || 3000; 
+const conexao = conectarBanco(); 
 
-// Rota inicial: entrega a página HTML principal
+//entrega a página HTML principal
 app.get('/', (req, res) => {
     res.sendFile("./public/index.html", { root: "." }); // Envia o arquivo index.html
 });
 
-// 1. INCLUSÃO (POST) - Criar tarefa
+//Cria a tarefa
 app.post("/tarefas", async (req, res) => {
     try {
         const { nome, descricao, responsavel, data_tarefa, concluido } = req.body; // Pega dados enviados
 
-        // Valida se os campos obrigatórios foram preenchidos
+        // Valida se tudo que é obrigatório foi permitido
         if (!nome || !responsavel || !data_tarefa) {
             return res.status(400).json({ message: "Nome, responsável e data são obrigatórios!" }); // Retorna erro 400
         }
 
         const sql = "INSERT INTO tarefas (nome, descricao, responsavel, data_tarefa, concluido) VALUES (?, ?, ?, ?, ?)"; // Comando SQL para inserir
         
-        // Executa o INSERT no banco de dados
+        // Executa e salva tudo dentro do bd
         const [resposta] = await conexao.query(sql, [
             nome,
             descricao || null,
@@ -38,54 +38,54 @@ app.post("/tarefas", async (req, res) => {
             concluido ?? false
         ]);
 
-        // Retorna sucesso e o ID gerado
+        // Devolve com "Sucesso" o ID
         res.status(201).json({
             message: "Tarefa criada com sucesso!",
             id: resposta.insertId
         });
     } catch (error) {
-        console.error(error); // Exibe erro no console
-        res.status(500).json({ message: "Erro ao cadastrar tarefa" }); // Retorna erro 500
+        console.error(error); 
+        res.status(500).json({ message: "Erro ao cadastrar tarefa" }); 
     }
 });
 
-// 2. CONSULTA POR ID (GET) - Buscar uma tarefa
+// Busca uma tarefa pelo ID
 app.get("/tarefas/:id", async (req, res) => {
     try {
         const id = Number(req.params.id); // Converte o ID da URL para número
-        const sql = "SELECT * FROM tarefas WHERE id = ?"; // Comando SQL para buscar por ID
+        const sql = "SELECT * FROM tarefas WHERE id = ?"; // Comando para buscar por ID
         
-        const [linhas] = await conexao.query(sql, [id]); // Executa a busca
+        const [linhas] = await conexao.query(sql, [id]); //Procura no banco
 
         if (linhas.length > 0) {
             res.json(linhas[0]); // Retorna a tarefa encontrada
         } else {
-            res.status(404).json({ message: "Tarefa não encontrada!" }); // Retorna erro 404
+            res.status(404).json({ message: "Tarefa não encontrada!" }); 
         }
     } catch (error) {
-        console.error(error); // Exibe erro no console
-        res.status(500).json({ message: "Erro ao buscar tarefa" }); // Retorna erro 500
+        console.error(error); 
+        res.status(500).json({ message: "Erro ao buscar tarefa" }); // Retorna erro inesperado
     }
 });
 
-// 3. LISTAR TODAS / POR PERÍODO (GET) - Buscar várias tarefas
+//Busca várias tarefas
 app.get("/tarefas", async (req, res) => {
     try {
-        const { inicio, fim } = req.query; // Pega as datas da URL se existirem
+        const { inicio, fim } = req.query; 
 
         // Se passar período, filtra por datas
         if (inicio && fim) {
             const sql = "SELECT * FROM tarefas WHERE data_tarefa BETWEEN ? AND ? ORDER BY data_tarefa ASC"; // SQL com filtro
-            const [linhas] = await conexao.query(sql, [inicio, fim]); // Executa busca com filtro
+            const [linhas] = await conexao.query(sql, [inicio, fim]); 
             return res.json(linhas); // Retorna tarefas filtradas
         }
 
-        const sql = "SELECT * FROM tarefas ORDER BY data_tarefa ASC"; // SQL sem filtro (busca tudo)
+        const sql = "SELECT * FROM tarefas ORDER BY data_tarefa ASC"; // SQL sem filtro 
         const [linhas] = await conexao.query(sql); // Executa busca geral
-        res.json(linhas); // Retorna todas as tarefas
+        res.json(linhas); 
     } catch (error) {
-        console.error(error); // Exibe erro no console
-        res.status(500).json({ message: "Erro ao listar tarefas" }); // Retorna erro 500
+        console.error(error);
+        res.status(500).json({ message: "Erro ao listar tarefas" }); 
     }
 });
 
@@ -113,36 +113,36 @@ app.put("/tarefas/:id", async (req, res) => {
         ]);
 
         if (resposta.affectedRows > 0) {
-            res.json({ message: "Tarefa atualizada com sucesso" }); // Sucesso se alterou
+            res.json({ message: "Tarefa atualizada com sucesso" }); 
         } else {
-            res.status(404).json({ message: "Tarefa não encontrada" }); // Erro 404 se não achou ID
+            res.status(404).json({ message: "Tarefa não encontrada" }); 
         }
     } catch (error) {
-        console.error(error); // Exibe erro no console
-        res.status(500).json({ message: "Erro ao atualizar tarefa" }); // Retorna erro 500
+        console.error(error); 
+        res.status(500).json({ message: "Erro ao atualizar tarefa" }); 
     }
 });
 
-// 5. EXCLUSÃO (DELETE) - Apagar tarefa
+//Apagar tarefa
 app.delete("/tarefas/:id", async (req, res) => {
     try {
         const id = Number(req.params.id); // Pega o ID da URL
-        const sql = "DELETE FROM tarefas WHERE id = ?"; // Comando SQL para deletar
+        const sql = "DELETE FROM tarefas WHERE id = ?";
         
         const [resposta] = await conexao.query(sql, [id]); // Executa a exclusão
 
         if (resposta.affectedRows > 0) {
-            res.json({ message: "Tarefa deletada com sucesso" }); // Sucesso se deletou
+            res.json({ message: "Tarefa deletada com sucesso" });
         } else {
-            res.status(404).json({ message: "Tarefa não encontrada" }); // Erro 404 se não achou ID
+            res.status(404).json({ message: "Tarefa não encontrada" }); 
         }
     } catch (error) {
-        console.error(error); // Exibe erro no console
-        res.status(500).json({ message: "Erro ao deletar tarefa" }); // Retorna erro 500
+        console.error(error);
+        res.status(500).json({ message: "Erro ao deletar tarefa" }); 
     }
 });
 
-// Inicialização do Servidor
+
 app.listen(PORTA, () => {
-    console.log(`Servidor rodando em http://localhost:${PORTA}`); // Avisa no terminal que o servidor subiu
+    console.log(`Servidor rodando em http://localhost:${PORTA}`); 
 });
